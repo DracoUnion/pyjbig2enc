@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd /d D:srcjbig2encpysrc)",
+      "Bash(python -c \"from numba import njit; print\\(''Numba 导入成功''\\)\")",
+      "Bash(python:*)"
+    ]
+  }
+}
