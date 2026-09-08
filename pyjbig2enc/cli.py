@@ -54,6 +54,7 @@ from PIL import Image
 from . import __version__
 from .encoder import Jbig2Context, encode_generic, auto_threshold, auto_threshold_using_hash
 from .structs import JBIG2_FILE_MAGIC
+from .pdf import make_jb2_pdf
 
 
 # 默认参数值
@@ -310,33 +311,33 @@ def encode_multi_page(files: List[str], args) -> None:
     sym_data = ctx.pages_complete(verbose=args.verbose)
 
     # 输出符号表
-    if args.pdf:
-        sym_file = f"{args.basename}.sym"
-        with open(sym_file, 'wb') as f:
-            f.write(sym_data)
-        if args.verbose:
-            print(f"Symbol table written to {sym_file}", file=sys.stderr)
-    else:
-        # 直接输出到stdout
-        if hasattr(sys.stdout, 'buffer'):
-            sys.stdout.buffer.write(sym_data)
+    sym_file = f"{args.basename}.sym"
+    with open(sym_file, 'wb') as f:
+        f.write(sym_data)
+    if args.verbose:
+        print(f"Symbol table written to {sym_file}", file=sys.stderr)
 
     # 编码并输出每一页
+    page_data_list = []
     for i in range(len(ctx.pages)):
         if args.verbose:
             print(f"Encoding page {i+1}/{len(ctx.pages)}...", file=sys.stderr)
 
         page_data = ctx.produce_page(i)
+        page_data_list.append(page_data)
 
-        if args.pdf:
-            page_file = f"{args.basename}.{i:04d}"
-            with open(page_file, 'wb') as f:
-                f.write(page_data)
-            if args.verbose:
-                print(f"Page {i} written to {page_file}", file=sys.stderr)
-        else:
-            if hasattr(sys.stdout, 'buffer'):
-                sys.stdout.buffer.write(page_data)
+        page_file = f"{args.basename}.{i:04d}"
+        with open(page_file, 'wb') as f:
+            f.write(page_data)
+        if args.verbose:
+            print(f"Page {i} written to {page_file}", file=sys.stderr)
+
+    if args.pdf:
+        pdf_fname = f"{args.basename}.pdf"
+        pdf_data = make_jb2_pdf(sym_data, page_data_list)
+        open(pdf_fname, 'wb').write(pdf_data)
+        if args.verbose:
+            print(f"pdf written to {pdf_fname}", file=sys.stderr)
 
     # 清理
     ctx.destroy()
@@ -389,10 +390,11 @@ def main() -> int:
             data = encode_single_page(img, args)
 
             # 输出到stdout
-            if hasattr(sys.stdout, 'buffer'):
-                sys.stdout.buffer.write(data)
-            else:
-                sys.stdout.write(data)
+            fname = f"{args.basename}.jb2"
+            open(fname, 'wb').write(data)
+            if args.verbose:
+                print(f"JB2 written to {fname}", file=sys.stderr)
+
 
     except KeyboardInterrupt:
         print("\nInterrupted", file=sys.stderr)
