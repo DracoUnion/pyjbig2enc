@@ -360,7 +360,7 @@ def encode_symbol_mode(files: List[str], args) -> None:
     ctx.destroy()
 
 
-def img2jb2pdf(imgs: str[bytes | str | Callable]) -> bytes:
+def img2jb2pdf(imgs: bytes | str | Callable) -> bytes:
     for i, img in enumerate(imgs):
         if isinstance(img, str):
             imgs[i] = open(img, 'rb').read()
