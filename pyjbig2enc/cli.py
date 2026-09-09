@@ -217,10 +217,10 @@ def load_image(filepath: str | bytes, args) -> Optional[Image.Image]:
             # 全局阈值
             img = img.point(lambda x: 0 if x < args.bw_threshold else 255, '1')
         else:
-            # 自适应阈值（简化实现：使用局部平均）
-            from PIL import ImageFilter
-            blurred = img.filter(ImageFilter.GaussianBlur(radius=2))
-            img = Image.eval(img, lambda x, b=args.bw_threshold: 0 if x < b else 255)
+            bio = BytesIO()
+            img.save(bio, 'PNG')
+            img_data = adathres(bio.getvalue())
+            img = Image.open(BytesIO(img_data))
             img = img.convert('1')
 
     elif img.mode != '1':
