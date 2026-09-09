@@ -52,7 +52,7 @@ from typing import List, Optional
 from PIL import Image
 
 from . import __version__
-from .encoder import Jbig2Context, encode_generic, auto_threshold, auto_threshold_using_hash
+from .encoder import Jbig2Context, encode_generic_single, auto_threshold, auto_threshold_using_hash
 from .structs import JBIG2_FILE_MAGIC
 from .pdf import make_jb2_pdf
 
@@ -226,7 +226,7 @@ def load_image(filepath: str, args) -> Optional[Image.Image]:
     return img
 
 
-def encode_single_page(img: Image.Image, args) -> bytes:
+def encode_generic_mode(files: List[str], args) -> bytes:
     """
     编码单页图像
 
@@ -239,14 +239,27 @@ def encode_single_page(img: Image.Image, args) -> bytes:
     返回:
         bytes: 编码后的JBIG2数据
     """
-    return encode_generic(
-        img,
-        full_headers=not args.pdf,
-        duplicate_line_removal=args.duplicate_line_removal
-    )
+    l = len(str(len(files)))
+    for i, f in enumerate(files):
+        img = load_image(f, args)
+        if img is None: continue
+        if args.output_image:
+            img.save(args.output_image)
+        data = encode_generic_single(
+            f,
+            full_headers=not args.pdf,
+            duplicate_line_removal=args.duplicate_line_removal
+        )
+        # 输出到stdout
+        output_fname = str(i).zfill(l)
+        output_fname = f"{args.basename}_{output_fname}.jb2"
+        open(output_fname, 'wb').write(data)
+        if args.verbose:
+            print(f"JB2 written to {output_fname}", file=sys.stderr)
 
 
-def encode_multi_page(files: List[str], args) -> None:
+
+def encode_symbol_mode(files: List[str], args) -> None:
     """
     编码多页文档
 
@@ -372,29 +385,11 @@ def main() -> int:
 
     try:
         if args.symbol_mode:
-            # 多页符号模式
-            encode_multi_page(args.files, args)
+            # 符号模式
+            encode_symbol_mode(args.files, args)
         else:
-            # 单页通用模式
-            if len(args.files) > 1:
-                print("Warning: Multiple files in generic mode, only processing first",
-                      file=sys.stderr)
-
-            img = load_image(args.files[0], args)
-            if img is None:
-                return 1
-
-            if args.output_image:
-                img.save(args.output_image)
-
-            data = encode_single_page(img, args)
-
-            # 输出到stdout
-            fname = f"{args.basename}.jb2"
-            open(fname, 'wb').write(data)
-            if args.verbose:
-                print(f"JB2 written to {fname}", file=sys.stderr)
-
+            # 通用模式
+            encode_generic_mode(args.files, args)
 
     except KeyboardInterrupt:
         print("\nInterrupted", file=sys.stderr)

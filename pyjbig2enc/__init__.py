@@ -34,7 +34,7 @@ __version__ = "0.29"
 
 from .encoder import (
     Jbig2Context,
-    encode_generic,
+    encode_generic_single,
     auto_threshold,
     auto_threshold_using_hash,
 )
@@ -55,7 +55,7 @@ from .segments import Segment
 
 __all__ = [
     'Jbig2Context',
-    'encode_generic',
+    'encode_generic_single',
     'auto_threshold',
     'auto_threshold_using_hash',
     'JBIG2_FILE_MAGIC',

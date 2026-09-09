@@ -286,7 +286,7 @@ class Jbig2Context:
         self.page_symbols.clear()
 
 
-def encode_generic(img: Image.Image,
+def encode_generic_single(img: Image.Image,
                    full_headers: bool = True,
                    xres: int = 0,
                    yres: int = 0,

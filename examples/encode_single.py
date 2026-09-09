@@ -18,7 +18,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from PIL import Image
-from pyjbig2enc import encode_generic
+from pyjbig2enc import encode_generic_single
 
 
 def main():
@@ -55,7 +55,7 @@ def main():
     # 编码
     print("编码中...")
     try:
-        data = encode_generic(
+        data = encode_generic_single(
             img,
             full_headers=not args.no_header,
             duplicate_line_removal=args.duplicate_line_removal
