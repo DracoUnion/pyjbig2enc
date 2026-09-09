@@ -382,7 +382,7 @@ def img2jb2pdf(imgs: str[bytes | str | Callable]) -> bytes:
         img_data = adathres(img_data)
         img = Image.open(BytesIO(img_data))
         if img.mode != '1':
-            img.convert('1')
+            img = img.convert('1')
         ctx.add_page(img)
     # 自动阈值处理
     auto_threshold_using_hash(ctx)
