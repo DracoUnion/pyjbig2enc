@@ -219,6 +219,9 @@ class Jbig2Context:
     def pages_complete(self, verbose: bool = False) -> bytes:
         """
         完成页面添加，编码符号表
+
+        输出完整的 JBIG2 符号表段（段头 + 符号字典头 + 编码数据），
+        以便 PDF 中的 JBIG2Decode 流能正确引用全局符号表。
         """
         single_page = len(self.pages) == 1
 
@@ -242,15 +245,48 @@ class Jbig2Context:
         temp_symmap = {}
         encode_symbol_table(encoder, self.symbols, symbol_list, temp_symmap, True)
 
+        sym_data = encoder.get_bytes()
+
+        # 符号字典段头（全局段，page=0）
+        symtab = Jbig2SymbolDict()
+        symtab.a1x = 3
+        symtab.a1y = -1
+        symtab.a2x = -3
+        symtab.a2y = -1
+        symtab.a3x = 2
+        symtab.a3y = -2
+        symtab.a4x = -2
+        symtab.a4y = -2
+        symtab.exsyms = self.num_global_symbols
+        symtab.newsyms = self.num_global_symbols
+        symtab_header = symtab.pack()
+
+        seg = Segment()
+        seg.number = self.segnum
+        self.segnum += 1
+        seg.type = SegmentType.SYMBOL_TABLE
+        seg.page = 0
+        seg.retain_bits = 1
+        seg.len = len(symtab_header) + len(sym_data)
+        self.symtab_segment = seg.number
+
+        out = bytearray()
+        out.extend(seg.to_bytes())
+        out.extend(symtab_header)
+        out.extend(sym_data)
+
         if verbose:
             print(f"JBIG2 compression complete. pages:{len(self.pages)} "
                   f"symbols:{len(self.symbols)} log2:{log2up(len(self.symbols))}")
 
-        return encoder.get_bytes()
+        return bytes(out)
 
     def produce_page(self, page_no: int, xres: int = -1, yres: int = -1) -> bytes:
         """
         编码单个页面
+
+        输出完整的 JBIG2 段序列（页面信息段 + 文本区域段 + 页面结束段），
+        与原始 jbig2enc 输出的二进制布局一致，可直接嵌入 PDF。
         """
         page = self.pages[page_no]
         width = page['width']
@@ -264,9 +300,9 @@ class Jbig2Context:
         encoder = ArithmeticEncoder()
 
         comps = self.page_symbols[page_no]
-        positions = [(self.symbol_positions[c][1], self.symbol_positions[c][2])
-                     for c in comps]
-        assignments = [self.symbol_assignments[c] for c in comps]
+        positions = {c: (self.symbol_positions[c][1], self.symbol_positions[c][2])
+                     for c in comps}
+        assignments = {c: self.symbol_assignments[c] for c in comps}
 
         numsyms = self.num_global_symbols
         symbits = log2up(numsyms) if numsyms > 0 else 1
@@ -275,7 +311,64 @@ class Jbig2Context:
         encode_text_region(encoder, self.symmap, empty_symmap2, comps,
                           positions, self.symbols, assignments, 1, symbits)
 
-        return encoder.get_bytes()
+        text_data = encoder.get_bytes()
+
+        # 文本区域头
+        textreg = Jbig2TextRegion()
+        textreg.width = width
+        textreg.height = height
+        textreg.logsbstrips = 0
+        textreg_header = textreg.pack()
+
+        # 文本区域符号实例数
+        syminsts = Jbig2TextRegionSyminsts()
+        syminsts.sbnuminstances = len(comps)
+        syminsts_data = syminsts.pack()
+
+        out = bytearray()
+
+        # 1. 页面信息段
+        page_info = Jbig2PageInfo(
+            width=width,
+            height=height,
+            xres=int(xres) if xres else 0,
+            yres=int(yres) if yres else 0,
+            is_lossless=1,
+        )
+        page_info_data = page_info.pack()
+
+        seg = Segment()
+        seg.number = self.segnum
+        self.segnum += 1
+        seg.type = SegmentType.PAGE_INFORMATION
+        seg.page = 1
+        seg.len = len(page_info_data)
+        out.extend(seg.to_bytes())
+        out.extend(page_info_data)
+
+        # 2. 文本区域段（引用全局符号表段）
+        segr = Segment()
+        segr.number = self.segnum
+        self.segnum += 1
+        segr.type = SegmentType.IMM_TEXT_REGION
+        segr.page = 1
+        segr.referred_to = [self.symtab_segment]
+        segr.retain_bits = 2
+        segr.len = len(textreg_header) + len(syminsts_data) + len(text_data)
+        out.extend(segr.to_bytes())
+        out.extend(textreg_header)
+        out.extend(syminsts_data)
+        out.extend(text_data)
+
+        # 3. 页面结束段
+        endseg = Segment()
+        endseg.number = self.segnum
+        self.segnum += 1
+        endseg.type = SegmentType.END_OF_PAGE
+        endseg.page = 1
+        out.extend(endseg.to_bytes())
+
+        return bytes(out)
 
     def destroy(self) -> None:
         """释放资源"""

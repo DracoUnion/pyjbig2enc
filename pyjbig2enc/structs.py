@@ -48,7 +48,8 @@ BW_GLOBAL_THRESHOLD_DEF = 128
 
 # JBIG2文件魔数 - 每个JBIG2文件都以这8个字节开头
 # 0x97是JBIG2特有的文件标识字节
-JBIG2_FILE_MAGIC = b'\x97J B2\r\n\x1a\n'
+# 注意：必须是 b'\x97JB2\r\n\x1a\n'（8字节，JB2间无空格）
+JBIG2_FILE_MAGIC = b'\x97JB2\r\n\x1a\n'
 
 
 class SegmentType(IntEnum):
@@ -148,7 +149,8 @@ class Jbig2PageInfo:
                 ((self.reserved & 0x01) << 7)
 
         return struct.pack('>IIII', self.width, self.height, self.xres, self.yres) + \
-               struct.pack('BB', flags, self.segment_flags)
+               struct.pack('B', flags) + \
+               struct.pack('>H', self.segment_flags)
 
 
 @dataclass

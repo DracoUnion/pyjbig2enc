@@ -110,12 +110,12 @@ def ref(x):
 def make_jb2_pdf(symtbl: bytes, contents: List[bytes]):
     doc = Doc()
     doc.add_object(Obj({
-        b'Type' : b'/Catalog', 
-        b'Outlines' : ref(2), 
+        b'Type' : b'/Catalog',
+        b'Outlines' : ref(2),
         b'Pages' : ref(3),
     }))
     doc.add_object(Obj({
-        b'Type' : b'/Outlines', 
+        b'Type' : b'/Outlines',
         b'Count': b'0'
     }))
     pages = Obj({b'Type' : b'/Pages'})
@@ -132,13 +132,13 @@ def make_jb2_pdf(symtbl: bytes, contents: List[bytes]):
             yres = dpi
 
         xobj = Obj({
-            b'Type': b'/XObject', 
-            b'Subtype': b'/Image', 
-            b'Width': b'%d' % width, 
-            b'Height': b'%d' % height, 
+            b'Type': b'/XObject',
+            b'Subtype': b'/Image',
+            b'Width': b'%d' % width,
+            b'Height': b'%d' % height,
             b'ColorSpace': b'/DeviceGray',
-            b'BitsPerComponent': b'1', 
-            b'Filter': b'/JBIG2Decode', 
+            b'BitsPerComponent': b'1',
+            b'Filter': b'/JBIG2Decode',
             b'DecodeParms': b' << /JBIG2Globals %d 0 R >>' % symd.id
         }, cont)
         cont = Obj({}, b'q %f 0 0 %f 0 0 cm /Im1 Do Q' % (float(width * 72) / xres, float(height * 72) / yres))
@@ -147,7 +147,7 @@ def make_jb2_pdf(symtbl: bytes, contents: List[bytes]):
             b'XObject': b'<< /Im1 %d 0 R >>' % xobj.id
         })
         page = Obj({
-            b'Type': b'/Page', 
+            b'Type': b'/Page',
             b'Parent': b'3 0 R',
             b'MediaBox': b'[ 0 0 %f %f ]' % (float(width * 72) / xres, float(height * 72) / yres),
             b'Contents': ref(cont.id),
@@ -166,11 +166,10 @@ def make_jb2_pdf(symtbl: bytes, contents: List[bytes]):
 def safe_mkdir(dir):
     try: os.makedirs(dir)
     except: pass
-    
+
 def safe_rmdir(dir):
     try: shutil.rmtree(dir)
     except: pass
 
 def asset(name=''):
     return path.join(DIR, 'assets', name)
-
